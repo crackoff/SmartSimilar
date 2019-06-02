@@ -1,78 +1,29 @@
 ﻿using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
-using System.ComponentModel;
-using System.Data;
-using System.Drawing;
 using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
 using System.Windows.Forms;
-using Cloo;
-using JetBrains.Annotations;
-using NLog;
+using SmartSimilar.ML;
 
 namespace SmartSimilar
 {
     public partial class MainForm : Form
     {
-        /// <summary>
-        /// Логгер для выполнения операций
-        /// </summary>
-        [CanBeNull] private Logger _log;
-
-        /// <summary>
-        /// Контекст вычислений
-        /// </summary>
-        private ComputeContext _context;
-
-        /// <summary>
-        /// Доступные платформы
-        /// </summary>
-        private ReadOnlyCollection<ComputePlatform> _platforms;
-
-        /// <summary>
-        /// Доступные устройства
-        /// </summary>
-        private ConcurrentDictionary<int, ComputeDevice> _devices;
-
         public MainForm()
         {
             InitializeComponent();
-
-            _platforms = ComputePlatform.Platforms;
-            _log?.Info($"Доступны платформы: {string.Join(", ", _platforms.Select(x => x.Name))}");
-            if (_platforms.Count == 0) _log?.Error("Нет ни одной доступной платформы");
-            _context = new ComputeContext(ComputeDeviceTypes.Gpu, new ComputeContextPropertyList(_platforms[0]), null, IntPtr.Zero);
-
-            _devices = new ConcurrentDictionary<int, ComputeDevice>(_platforms[0].Devices
-                .Where(x => x.Type == ComputeDeviceTypes.Gpu).ToDictionary(x => (int)x.Handle.Value, x => x));
-            _log?.Info($"Доступны устройства: {string.Join(", ", _devices.Values.Select(x => x.Name))}");
-
-            if (_devices.Count == 0)
-            {
-                _log?.Error("Нет ни одного пригодного для вычислений устройства");
-            }
         }
 
-        private async void calculateButton_Click(object sender, EventArgs e)
+        private void calculateButton_Click(object sender, EventArgs e)
         {
-            var data = DataExtractor.GetGlassesData(textBox.Text, out bool isMedical, out var errors);
-
-            if (errors.Count > 0)
-                MessageBox.Show(string.Join(Environment.NewLine, errors));
-
-            int[] result;
+            IEnumerable<Eyeglasses> result;
             try
             {
-                textBox.Text = @"Расчет...";
-                var calculator = new Calculator(_context);
-                result = await calculator.Execute(_devices.First().Value, data, isMedical, 5);
+                result = Calculator.Calculate(textBox.Text, 5);
             }
             catch (Exception exception)
             {
-                textBox.Text = exception.ToString();
+                textBox.Text = exception.Message;
                 return;
             }
 
@@ -80,13 +31,15 @@ namespace SmartSimilar
             sb.AppendLine();
             sb.AppendLine();
 
-            int idIndex = isMedical ? 5 : 4;
-            for (int i = 0; i < result.Length; i++)
+            foreach (var eyeglasses in result)
             {
-                sb.AppendFormat(
-                    "INSERT b_iblock_element_prop_m5(IBLOCK_ELEMENT_ID,IBLOCK_PROPERTY_ID,VALUE,VALUE_NUM) VALUES ({0}, 122, {1}, {1});",
-                    data[i / 5][idIndex], result[i]);
-                sb.AppendLine();
+                for (int i = 0; i < eyeglasses.SimilarEyeglasses.Length; i++)
+                {
+                    sb.AppendFormat(
+                        "INSERT b_iblock_element_prop_m5(IBLOCK_ELEMENT_ID,IBLOCK_PROPERTY_ID,VALUE,VALUE_NUM) VALUES ({0}, 122, {1}, {1});",
+                        eyeglasses.Id, eyeglasses.SimilarEyeglasses[i].Id);
+                    sb.AppendLine();
+                }
             }
 
             sb.AppendLine();
