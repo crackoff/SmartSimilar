@@ -20,7 +20,7 @@ namespace SmartSimilar.ML
                     {
                         case EyeglassesType.Sun:
                         {
-                            if (values.Length != 6)
+                            if (values.Length != 7)
                             {
                                 continue;
                             }
@@ -33,13 +33,14 @@ namespace SmartSimilar.ML
                                 SunColor = (SunColor) short.Parse(values[3]),
                                 Id = int.Parse(values[4]),
                                 Name = values[5],
+                                SunBrand = values[6],
                             };
                             break;
                         }
 
                         case EyeglassesType.Medical:
                         {
-                            if (values.Length != 7)
+                            if (values.Length != 8)
                             {
                                 continue;
                             }
@@ -53,6 +54,7 @@ namespace SmartSimilar.ML
                                 MedicalRimGlasses = (MedicalRimGlasses)short.Parse(values[4]),
                                 Id = int.Parse(values[5]),
                                 Name = values[6],
+                                MedicalBrand = values[7],
                             };
                             break;
                         }
